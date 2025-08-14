@@ -31,8 +31,8 @@ st.title("🔐 TensAI Chatbot Admin Dashboard")
 
  
 
-ADMIN_USER = "admin"
-ADMIN_PASS = "password123"  # Store securely in env/secrets
+ADMIN_USER = "Your_Username"
+ADMIN_PASS = "Your_Password"  
 
 # Simple login form
 if "logged_in" not in st.session_state:
@@ -135,4 +135,5 @@ with tab3:
                     conn.close()
             else:
                 st.warning("⚠ Please enter a valid username.")
+
 
