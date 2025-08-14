@@ -91,7 +91,7 @@ with open("document.pdf", "rb") as f:
 # LLM Call Function
 # -------------------------------
 def call_llm_api(conversation_history):
-    # Build system + conversation into a single string (Bedrock doesn't have a true "system" role here)
+    # Build the system message with your PDF content
     system_message = f"""
 You are TensAI Chat, QBYTZ's personal website chatbot. Always follow these rules:
 
@@ -117,40 +117,34 @@ Company info and product details:
 {company_info_text}
 """
 
-    formatted_messages = []
+    # Nova Lite expects messages in this format:
+    messages = [{"role": "system", "content": [{"text": system_message}]}]
+
+    # Append conversation history (your conversation_history should already be in compatible format)
     for msg in conversation_history:
-        role = msg["role"]
-        if role == "system":
-            role = "user"  # Bedrock-safe replacement
-
-        # Ensure content is a list of {"text": "..."} objects
-        if isinstance(msg["content"], str):
-            content_list = [{"text": msg["content"]}]
-        else:
-            content_list = msg["content"]
-
-        formatted_messages.append({
-            "role": role,
-            "content": content_list
+        messages.append({
+            "role": msg["role"],
+            "content": [{"text": msg["content"]}]
         })
 
     payload = {
         "inferenceConfig": {
-            "max_new_tokens": 512,
-            "top_p": 0.9
+            "max_new_tokens": 1024
         },
-        "messages": formatted_messages
+        "messages": messages
     }
 
     try:
-        response = bedrock_runtime.invoke_model(
-            modelId=INFERENCE_PROFILE_ARN,
+        response = bedrock_runtime2.invoke_model(
+            modelId=INFERENCE_PROFILE_ARN,  # Your Nova Lite ARN
             contentType='application/json',
             accept='application/json',
             body=json.dumps(payload)
         )
+
         response_body = json.loads(response['body'].read())
-        return response_body["output"]["message"]["content"][0]["text"]
+        return response_body['output']['message']['content'][0]['text']
+
     except Exception as e:
         return f"An error occurred: {str(e)}"
         
@@ -428,5 +422,6 @@ if __name__ == '__main__':
     
     # Start the Flask app
     app.run(host='0.0.0.0', port=5000)
+
 
 
