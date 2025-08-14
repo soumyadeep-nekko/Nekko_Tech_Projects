@@ -58,7 +58,7 @@ def load_dict_from_json(file_path):
         data = json.load(file)
     return data
 
-secrets_file = "C:\\Users\\Anubhab Roy\\Downloads\\Nekko_WorkFiles\\qbytz-website-main\\secrets.json"
+secrets_file = "secrets.json"
 SECRETS = load_dict_from_json(secrets_file)
 
 aws_access_key_id = SECRETS["aws_access_key_id"]
@@ -93,7 +93,7 @@ with open("document.pdf", "rb") as f:
 def call_llm_api(conversation_history):
     # Build the system message with your PDF content
     system_message = f"""
-You are TensAI Chat,  QBYTZ's personal website chatbot. Always follow these rules:
+You are TensAI Chat, QBYTZ's personal website chatbot. Always follow these rules:
 
 1. **Customer Info First**: 
    - Always greet the user and immediately ask for their **Name and Mobile Number** before answering any queries.
@@ -116,30 +116,31 @@ You are TensAI Chat,  QBYTZ's personal website chatbot. Always follow these rule
 Company info and product details:
 {company_info_text}
 """
+
+    # Nova Lite uses OpenAI-style chat format
     messages = [{"role": "system", "content": system_message}] + conversation_history
 
     payload = {
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 4096,
-        "messages": [
-            {
-                "role": "user",
-                "content": json.dumps(messages)
-            }
-        ]
+        "model": "amazon.nova-lite-v1",  # Nova Lite model in Bedrock
+        "input": {
+            "messages": messages,
+            "max_output_tokens": 512,
+            "temperature": 0.7
+        }
     }
 
     max_retries = 5
     for attempt in range(max_retries):
         try:
             response = bedrock_runtime.invoke_model(
-                modelId=INFERENCE_PROFILE_ARN,
+                modelId=INFERENCE_PROFILE_ARN,  # Nova Lite modelId
                 contentType='application/json',
                 accept='application/json',
                 body=json.dumps(payload)
             )
             response_body = json.loads(response['body'].read())
-            return response_body['content'][0]['text']
+            # Nova Lite returns text in a slightly different structure
+            return response_body["output"]["message"]["content"][0]["text"]
         except bedrock_runtime.exceptions.ThrottlingException:
             wait_time = (2 ** attempt) + random.uniform(0, 1)
             print(f"Throttled. Retrying in {wait_time:.1f}s...")
@@ -147,6 +148,7 @@ Company info and product details:
         except Exception as e:
             return f"An error occurred: {str(e)}"
     return "An error occurred: Max retries exceeded."
+
 
 # --- LLM Call for Lead Extraction (with robust parsing) ---
 def extract_lead_details_from_conversation(conversation):
@@ -422,3 +424,4 @@ if __name__ == '__main__':
     
     # Start the Flask app
     app.run(host='0.0.0.0', port=5000)
+
