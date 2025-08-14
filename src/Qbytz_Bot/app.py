@@ -93,61 +93,61 @@ with open("document.pdf", "rb") as f:
 def call_llm_api(conversation_history):
     # Build the system message with your PDF content
     system_message = f"""
-You are TensAI Chat, QBYTZ's personal website chatbot. Always follow these rules:
+You are TensAI Chat,  QBYTZ's personal website chatbot. Always follow these rules:
 
-1. Customer Info First:
-   - Always greet the user and immediately ask for their Name and Mobile Number before answering any queries.
-   - Politely explain that these are required to assist them further.
-   - Optionally ask for Email and Organisation after Name & Mobile.
+1. **Customer Info First**: 
+   - Always greet the user and immediately ask for their **Name and Mobile Number** before answering any queries.
+   - Politely explain that these are **required to assist them further**.
+   - Optionally ask for **Email and Organisation** after Name & Mobile.
 
-2. Only Proceed After Details:
+2. **Only Proceed After Details**: 
    - Do not provide product information or answer questions until Name & Mobile are received.
    - If user refuses, politely remind: "I need your Name and Mobile Number to assist you."
 
-3. Answering Queries:
-   - After collecting details, answer briefly (≤50 words) and stay relevant.
+3. **Answering Queries**:
+   - After collecting details, answer **briefly (≤50 words)** and stay relevant.
    - If query is unrelated, reply: "I am a helpful assistant, please ask me something else."
-   - If user asks for sales contact, give sangita@nekko.tech.
+   - If user asks for sales contact, give **sangita@nekko.tech**.
 
-4. Formatting:
+4. **Formatting**:
    - Do not use markdown formatting.
    - Keep responses short, chat-friendly, and professional.
 
 Company info and product details:
 {company_info_text}
 """
-
-    # Nova Lite expects messages in this format:
-    messages = [{"role": "system", "content": [{"text": system_message}]}]
-
-    # Append conversation history (your conversation_history should already be in compatible format)
-    for msg in conversation_history:
-        messages.append({
-            "role": msg["role"],
-            "content": [{"text": msg["content"]}]
-        })
+    messages = [{"role": "system", "content": system_message}] + conversation_history
 
     payload = {
-        "inferenceConfig": {
-            "max_new_tokens": 1024
-        },
-        "messages": messages
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 4096,
+        "messages": [
+            {
+                "role": "user",
+                "content": json.dumps(messages)
+            }
+        ]
     }
 
-    try:
-        response = bedrock_runtime2.invoke_model(
-            modelId=INFERENCE_PROFILE_ARN,  # Your Nova Lite ARN
-            contentType='application/json',
-            accept='application/json',
-            body=json.dumps(payload)
-        )
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            response = bedrock_runtime.invoke_model(
+                modelId=INFERENCE_PROFILE_ARN,
+                contentType='application/json',
+                accept='application/json',
+                body=json.dumps(payload)
+            )
+            response_body = json.loads(response['body'].read())
+            return response_body['content'][0]['text']
+        except bedrock_runtime.exceptions.ThrottlingException:
+            wait_time = (2 ** attempt) + random.uniform(0, 1)
+            print(f"Throttled. Retrying in {wait_time:.1f}s...")
+            time.sleep(wait_time)
+        except Exception as e:
+            return f"An error occurred: {str(e)}"
+    return "An error occurred: Max retries exceeded."
 
-        response_body = json.loads(response['body'].read())
-        return response_body['output']['message']['content'][0]['text']
-
-    except Exception as e:
-        return f"An error occurred: {str(e)}"
-        
 # --- LLM Call for Lead Extraction (with robust parsing) ---
 def extract_lead_details_from_conversation(conversation):
     extraction_prompt = """
@@ -422,6 +422,3 @@ if __name__ == '__main__':
     
     # Start the Flask app
     app.run(host='0.0.0.0', port=5000)
-
-
-
