@@ -58,7 +58,7 @@ def load_dict_from_json(file_path):
         data = json.load(file)
     return data
 
-secrets_file = "secrets.json"
+secrets_file = "C:\\Users\\Anubhab Roy\\Downloads\\Nekko_WorkFiles\\qbytz-website-main\\secrets.json"
 SECRETS = load_dict_from_json(secrets_file)
 
 aws_access_key_id = SECRETS["aws_access_key_id"]
@@ -107,7 +107,6 @@ You are TensAI Chat,  QBYTZ's personal website chatbot. Always follow these rule
 3. **Answering Queries**:
    - After collecting details, answer **briefly (≤50 words)** and stay relevant.
    - If query is unrelated, reply: "I am a helpful assistant, please ask me something else."
-   - If user asks for sales contact, give **sangita@nekko.tech**.
 
 4. **Formatting**:
    - Do not use markdown formatting.
@@ -208,6 +207,26 @@ def is_session_valid(user_id):
     expiry = datetime.datetime.fromisoformat(row[0])
     return datetime.datetime.now() < expiry
     
+def get_conversation_history_from_db(user_id):
+    conn = sqlite3.connect('user_conversations.db')
+    c = conn.cursor()
+    twenty_four_hours_ago = datetime.datetime.now() - datetime.timedelta(hours=24)
+    c.execute("""
+        SELECT question, answer FROM conversations
+        WHERE user_id = ? AND timestamp >= ?
+        ORDER BY timestamp ASC
+    """, (user_id, twenty_four_hours_ago))
+    rows = c.fetchall()
+    conn.close()
+
+    history = []
+    for q, a in rows:
+        if q:
+            history.append({"role": "user", "content": q})
+        if a:
+            history.append({"role": "assistant", "content": a})
+    return history
+
 def get_or_create_user_id(session_id=None, user_info=None):
     """Get a valid session_id or create a new one if expired/nonexistent."""
     if session_id and is_session_valid(session_id):
@@ -317,21 +336,18 @@ def latest_file_in_last_24h(folder, cutoff):
 def chat():
     data = request.get_json()
     user_query = data.get("user_query", "").strip()
-    session_id = data.get("session_id", str(uuid.uuid4()))
+    session_id = data.get("session_id", None)
 
     if not user_query:
         return jsonify({"error": "No user query provided"}), 400
 
-    # Load conversation history
-    now = datetime.datetime.now()
-    twenty_four_hours_ago = now - datetime.timedelta(hours=24)
-    latest_path = latest_file_in_last_24h(CONVERSATIONS_FOLDER, twenty_four_hours_ago)
-    if latest_path is not None:
-        with open(latest_path, "r", encoding="utf-8") as f:
-            combined_history = json.load(f)
-    else:
-        combined_history = []
+    # Create or get the user_id first
+    user_id = get_or_create_user_id(session_id)
 
+    # Load history from DB (stateful memory)
+    combined_history = get_conversation_history_from_db(user_id)
+
+    # Append the new user query
     combined_history.append({"role": "user", "content": user_query})
 
     # Call LLM
@@ -340,23 +356,26 @@ def chat():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+    # Append assistant reply
     combined_history.append({"role": "assistant", "content": reply})
 
-    # Extract user info *before* saving conversation
+    # Extract user info and update DB
     user_info = extract_lead_details_from_conversation(combined_history)
+    update_user_info(user_id,
+                     username=user_info.get("name"),
+                     phone_number=user_info.get("phone"),
+                     email=user_info.get("email"),
+                     pain_points=user_info.get("pain_points"))
 
-    # Create or update user in DB
-    user_id = get_or_create_user_id(session_id, user_info)
-
-    # Save conversation
+    # Save to DB
     save_conversation(user_id, user_query, reply)
 
-    # Save conversation file
-    if not latest_path:
-        latest_path = os.path.join(
-            CONVERSATIONS_FOLDER,
-            f"chat_{now.strftime('%Y%m%d_%H%M%S')}.json"
-        )
+    # Also store conversation to JSON (optional, for your lead extraction process)
+    now = datetime.datetime.now()
+    latest_path = os.path.join(
+        CONVERSATIONS_FOLDER,
+        f"chat_{user_id}_{now.strftime('%Y%m%d_%H%M%S')}.json"
+    )
     with open(latest_path, "w", encoding="utf-8") as f:
         json.dump(combined_history, f, indent=4)
 
