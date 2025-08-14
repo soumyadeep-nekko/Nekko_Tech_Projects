@@ -58,7 +58,7 @@ def load_dict_from_json(file_path):
         data = json.load(file)
     return data
 
-secrets_file = "C:\\Users\\Anubhab Roy\\Downloads\\Nekko_WorkFiles\\Tensai Chat Prod\\chatbot\\secrets.json"
+secrets_file = "../secrets.json"
 SECRETS = load_dict_from_json(secrets_file)
 
 aws_access_key_id = SECRETS["aws_access_key_id"]
@@ -422,3 +422,4 @@ if __name__ == '__main__':
     
     # Start the Flask app
     app.run(host='0.0.0.0', port=5000)
+
