@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TensAI Chatbot</title>
+<style>
+    body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        margin: 0;
+        background: linear-gradient(135deg, #e0f2ff, #f5f7fa);
+    }
+
+    /* Floating Chat Button */
+.chat-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #0078ff, #005fcc);
+    color: white;
+    width: 65px;
+    height: 65px;
+    border-radius: 50%;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 28px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 1000;
+    animation: ringPulse 2s infinite;
+}
+
+/* Hover effect stays */
+.chat-toggle:hover {
+    transform: scale(1.15) rotate(10deg);
+}
+
+/* Ping/Ring Animation */
+@keyframes ringPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 120, 255, 0.6);
+        transform: rotate(0deg);
+    }
+    10% {
+        transform: rotate(15deg);
+    }
+    20% {
+        transform: rotate(-15deg);
+    }
+    30% {
+        transform: rotate(10deg);
+    }
+    40% {
+        transform: rotate(-10deg);
+    }
+    50% {
+        transform: rotate(5deg);
+    }
+    60% {
+        transform: rotate(-5deg);
+        box-shadow: 0 0 0 20px rgba(0, 120, 255, 0);
+    }
+    100% {
+        transform: rotate(0deg);
+        box-shadow: 0 0 0 0 rgba(0, 120, 255, 0);
+    }
+}
+
+
+    /* Chat Window */
+    .chat-container {
+        position: fixed;
+        bottom: 90px;
+        right: 20px;
+        width: 370px;
+        height: 520px;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(12px);
+        border-radius: 16px;
+        box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transform: translateY(20px) scale(0.95);
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+        z-index: 999;
+    }
+    .chat-container.open {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+        visibility: visible;
+    }
+
+    /* Chat Header */
+    .chat-header {
+        background: linear-gradient(135deg, #0078ff, #005fcc);
+        color: white;
+        padding: 14px;
+        font-size: 18px;
+        font-weight: bold;
+        text-align: center;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    /* Chat Body */
+    .chat-box {
+    flex: 1;
+    padding: 12px;
+    overflow-y: auto;
+    background: rgba(249, 249, 249, 0.6);
+
+    display: flex;              /* NEW: flex layout */
+    flex-direction: column;     /* Stack messages vertically */
+}
+    .chat-box::-webkit-scrollbar {
+        width: 6px;
+    }
+    .chat-box::-webkit-scrollbar-thumb {
+        background: rgba(0,0,0,0.25);
+        border-radius: 3px;
+    }
+
+    /* Messages */
+    .message {
+    margin: 8px 0;
+    padding: 10px 14px;
+    border-radius: 20px;
+    max-width: 75%;
+    word-wrap: break-word;
+    font-size: 14px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    animation: fadeInUp 0.3s ease;
+}
+
+/* User message on right */
+.message.user {
+    background: linear-gradient(135deg, #0078ff, #005fcc);
+    color: white;
+    border-bottom-right-radius: 6px;
+    align-self: flex-end; /* Pushes to right */
+}
+
+/* Bot message on left */
+.message.bot {
+    background: white;
+    color: #333;
+    border-bottom-left-radius: 6px;
+    align-self: flex-start; /* Pushes to left */
+}
+
+    /* Typing Indicator */
+    .typing {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+        color: #555;
+        margin: 8px 0;
+    }
+    .dot {
+        width: 6px;
+        height: 6px;
+        background: #555;
+        border-radius: 50%;
+        animation: blink 1.4s infinite ease-in-out;
+    }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes blink {
+        0%, 80%, 100% { transform: scale(0.8); opacity: 0.4; }
+        40% { transform: scale(1); opacity: 1; }
+    }
+
+    /* Input Area */
+    .input-area {
+        display: flex;
+        border-top: 1px solid #ddd;
+        background: rgba(255,255,255,0.9);
+        padding: 6px;
+    }
+    .input-area input {
+        flex: 1;
+        border: none;
+        padding: 12px;
+        font-size: 14px;
+        outline: none;
+        border-radius: 12px;
+        background: #f1f3f6;
+        margin-right: 6px;
+    }
+    .input-area button {
+    border: none;
+    background: linear-gradient(135deg, #0078ff, #005fcc);
+    border-radius: 12px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, transform 0.2s;
+    }
+    .input-area button:hover {
+        background: linear-gradient(135deg, #006ae0, #004cb3);
+        transform: scale(1.05);
+    }
+
+    /* Animations */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (max-width: 480px) {
+        .chat-container {
+            width: 90%;
+            height: 70%;
+            right: 5%;
+        }
+    }
+</style>
+</head>
+<body>
+
+<!-- Floating Chat Button -->
+<div class="chat-toggle" onclick="toggleChat()">💬</div>
+
+<!-- Chat Window -->
+<div class="chat-container" id="chat-container">
+    <div class="chat-header">TensAI Chatbot</div>
+    <div id="chat-box" class="chat-box"></div>
+    <div class="input-area">
+        <input type="text" id="user-input" placeholder="Type your message..." 
+            onkeypress="if(event.key==='Enter'){sendMessage()}"/>
+        <button onclick="sendMessage()" aria-label="Send">
+            <!-- Inline Send Icon SVG -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" 
+                 width="20" height="20" fill="white">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            </svg>
+        </button>
+    </div>
+</div>
+
+<script>
+let sessionId = localStorage.getItem("chat_session_id") || null;
+let typingIndicator = null;
+
+function toggleChat() {
+    document.getElementById("chat-container").classList.toggle("open");
+}
+
+function addMessage(text, sender) {
+    const msg = document.createElement("div");
+    msg.classList.add("message", sender);
+    msg.innerText = text;
+    document.getElementById("chat-box").appendChild(msg);
+    document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight;
+}
+
+function showTypingIndicator() {
+    if (!typingIndicator) {
+        typingIndicator = document.createElement("div");
+        typingIndicator.classList.add("typing");
+        typingIndicator.innerHTML = `<span class="dot"></span><span class="dot"></span><span class="dot"></span>`;
+        document.getElementById("chat-box").appendChild(typingIndicator);
+        document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight;
+    }
+}
+
+function hideTypingIndicator() {
+    if (typingIndicator) {
+        typingIndicator.remove();
+        typingIndicator = null;
+    }
+}
+
+async function sendMessage() {
+    const inputField = document.getElementById("user-input");
+    const userText = inputField.value.trim();
+    if (!userText) return;
+
+    addMessage(userText, "user");
+    inputField.value = "";
+
+    showTypingIndicator();
+
+    try {
+        const response = await fetch("/chat", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                user_query: userText,
+                session_id: sessionId
+            })
+        });
+
+        const data = await response.json();
+        hideTypingIndicator();
+
+        if (data.reply) {
+            addMessage(data.reply, "bot");
+        } else if (data.error) {
+            addMessage("Error: " + data.error, "bot");
+        }
+
+        if (data.session_id && !sessionId) {
+            sessionId = data.session_id;
+            localStorage.setItem("chat_session_id", sessionId);
+        }
+
+    } catch (err) {
+        hideTypingIndicator();
+        addMessage("Error: Could not connect to server.", "bot");
+    }
+}
+</script>
+</body>
+</html>
