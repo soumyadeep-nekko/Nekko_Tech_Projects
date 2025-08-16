@@ -938,12 +938,17 @@ function loadChatHistory() {
     const chatBox = document.getElementById("chat-box");
     chatBox.innerHTML = '';
     
-    chatHistory.forEach(msg => {
-        const msgElement = document.createElement("div");
-        msgElement.classList.add("message", msg.sender);
-        msgElement.innerText = msg.text;
-        chatBox.appendChild(msgElement);
-    });
+    if (chatHistory.length === 0) {
+        // Default welcome message
+        addMessage("Hello! I am TensAI, Qbytz's Chatbot 🤖", "bot");
+    } else {
+        chatHistory.forEach(msg => {
+            const msgElement = document.createElement("div");
+            msgElement.classList.add("message", msg.sender);
+            msgElement.innerText = msg.text;
+            chatBox.appendChild(msgElement);
+        });
+    }
     
     if (chatBox.children.length > 0) {
         chatBox.scrollTop = chatBox.scrollHeight;
@@ -992,7 +997,7 @@ async function sendMessage() {
     showTypingIndicator();
 
     try {
-        const response = await fetch("http://127.0.0.1:5000/chat", {
+        const response = await fetch("http://18.60.241.9:5000/chat", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify({
@@ -1040,5 +1045,6 @@ async function sendMessage() {
     <!-- Template Javascript -->
     <script src="js/main.js"></script>
 </body>
+
 
 </html>
