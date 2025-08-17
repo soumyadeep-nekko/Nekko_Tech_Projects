@@ -58,7 +58,7 @@ def load_dict_from_json(file_path):
         data = json.load(file)
     return data
 
-secrets_file = "C:\\Users\\Anubhab Roy\\Downloads\\Nekko_WorkFiles\\qbytz-website-main\\secrets.json"
+secrets_file = "secrets.json"
 SECRETS = load_dict_from_json(secrets_file)
 
 aws_access_key_id = SECRETS["aws_access_key_id"]
@@ -90,26 +90,36 @@ with open("document.pdf", "rb") as f:
 # -------------------------------
 # LLM Call Function
 # -------------------------------
-def call_llm_api(conversation_history):
-    # Build the system message with your PDF content
-    system_message = f"""
-You are TensAI Chat,  QBYTZ's personal website chatbot. Always follow these rules:
+def call_llm_api(conversation_history, require_user_details=True):
+    # Build system message conditionally
+    if require_user_details:
+        lead_rules = """
+1. Customer Info First:
+   - Always greet the user and immediately ask for their Name and Mobile Number before answering any queries.
+   - Politely explain that these are required to assist them further.
+   - Optionally ask for Email and Organisation after Name & Mobile.
 
-1. **Customer Info First**: 
-   - Always greet the user and immediately ask for their **Name and Mobile Number** before answering any queries.
-   - Politely explain that these are **required to assist them further**.
-   - Optionally ask for **Email and Organisation** after Name & Mobile.
-
-2. **Only Proceed After Details**: 
+2. Only Proceed After Details:
    - Do not provide product information or answer questions until Name & Mobile are received.
    - If user refuses, politely remind: "I need your Name and Mobile Number to assist you."
+"""
+    else:
+        lead_rules = """
+- User already provided their Name and Mobile Number within the last 24 hours.
+- Do not ask for Name or Mobile again.
+- You may optionally confirm Email or Organisation politely if not yet collected.
+"""
+    system_message = f"""
+You are TensAI Chat, QBYTZ's personal website chatbot. Always follow these rules:
 
-3. **Answering Queries**:
-   - After collecting details, answer **briefly (≤50 words)** and stay relevant.
+{lead_rules}
+
+3. Answering Queries:
+   - After collecting details, answer briefly (≤50 words) and stay relevant.
    - If query is unrelated, reply: "I am a helpful assistant, please ask me something else."
-   - If user asks for sales contact, give **sangita@nekko.tech**.
+   - If user asks for sales contact, give sangita@nekko.tech.
 
-4. **Formatting**:
+4. Formatting:
    - Do not use markdown formatting.
    - Keep responses short, chat-friendly, and professional.
 
@@ -122,10 +132,6 @@ STRICT RULES:
 3. Do not guess or add extra knowledge.
 4. Keep responses short, chat-friendly, and professional.
 5. Don't give any type of code to user
-6. Follow the lead collection rules:
-   - Always ask for Name and Mobile Number before answering.
-   - Only proceed with an answer after collecting them.
-   - Optionally ask for Email and Organisation after Name & Mobile.
 """
 
     messages = [{"role": "system", "content": system_message}] + conversation_history
@@ -357,12 +363,16 @@ def chat():
     # Create or get the user_id first
     user_id = get_or_create_user_id(session_id)
 
+    require_user_details = not is_session_valid(user_id)
+
     # Load history from DB (stateful memory)
     combined_history = get_conversation_history_from_db(user_id)
 
     # Append the new user query
     combined_history.append({"role": "user", "content": user_query})
 
+    reply = call_llm_api(combined_history, require_user_details=require_user_details)
+   
     # Call LLM
     try:
         reply = call_llm_api(combined_history)
@@ -454,3 +464,4 @@ if __name__ == '__main__':
     
     # Start the Flask app
     app.run(host='0.0.0.0', port=5000)
+
