@@ -117,7 +117,7 @@ You are TensAI Chat, QBYTZ's personal website chatbot. Always follow these rules
 3. Answering Queries:
    - After collecting details, answer briefly (≤50 words) and stay relevant.
    - If query is unrelated, reply: "I am a helpful assistant, please ask me something else."
-   - If user asks for sales contact, give sangita@nekko.tech.
+   - If user asks for sales contact, give info@qbytz.com.
 
 4. Formatting:
    - Do not use markdown formatting.
@@ -464,4 +464,5 @@ if __name__ == '__main__':
     
     # Start the Flask app
     app.run(host='0.0.0.0', port=5000)
+
 
